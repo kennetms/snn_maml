@@ -1,5 +1,5 @@
 import torch
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from .utils import softsign
 
 def tonp(x):
@@ -15,15 +15,13 @@ class AbstractMemristorModel():
         '''
         for name, param in model.get_trainable_named_parameters().items():
             if 'weight' in name:
-                param.grad.add_((param-self.wmax)*(param>self.wmax).float(), alpha=1.)            
-                param.grad.add_((param-self.wmin)*(param<=self.wmin).float(), alpha=1.)            
+                param.grad.add_(param*(param>self.wmax).float(), alpha=1.)            
+                param.grad.add_(param*(param<=self.wmin).float(), alpha=1.)            
         
-    def hard_clamp(self, params):
-        updated_params = OrderedDict()
-        for name, param in params.items():
+    def hard_clamp(self, model):
+        for name, param in model.get_trainable_named_parameters().items():
             if 'weight' in name:
-                updated_params[name] = torch.clamp(param.clone(), self.wmin, self.wmax)
-        return updated_params
+                param.data[:] = torch.clamp(param, self.wmin, self.wmax)
 
 class GokmenHaenschModel(AbstractMemristorModel):
     # Original code parameters
@@ -45,13 +43,12 @@ class GokmenHaenschModel(AbstractMemristorModel):
         return self.wmax-self.wmin
      
     def cond_update(self, update_tensor, weight_tensor, eta=1.0):
-        #Ensure in the following that the gradient descent update is passed, not the gradient. I.e. a minus sign should be added when calling the custom_update fn
         dw = update_tensor
         ws = weight_tensor 
 
-        A = (self.beta + self.gamma*softsign((dw)))    
+        A = (self.beta + self.gamma*softsign((-dw)))    
         B = self.alpha/A 
-        w = -B + (B + ws)*torch.exp(A*(dw*eta)) 
+        w = -B + (B + ws)*torch.exp(A*(-dw*eta)) 
         deltaw = w - ws
         if self.sigma > 0:
             noise = torch.sqrt(torch.abs(deltaw)*self.wrange)*self.sigma
@@ -59,16 +56,7 @@ class GokmenHaenschModel(AbstractMemristorModel):
         else:
             return w
         
-class PassThroughClamp(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, input_tensor, wmin, wmax):        
-        return torch.clamp(input_tensor, wmin, wmax)
-
-    def backward(aux, grad_output):
-        return grad_output, None, None
-passthroughclamp = PassThroughClamp.apply
         
-
     
 class Model1(GokmenHaenschModel):
     # Parameters with similar asymm to original code parameters but normalized step size
@@ -121,165 +109,6 @@ class Model3(GokmenHaenschModel):
     name = 'Model3'
     gamma = -10
     alpha=1.45
-    
-    @property
-    def beta(self):
-        return (self.alpha-1)* self.gamma/(self.alpha- 2)     
-    
-class Model3Linear(Model3):
-    name = 'Linear3'
-
-    @property
-    def wrange(self):
-        return self.wmax-self.wmin
-    
-    def cond_update(self, update_tensor, weight_tensor, eta=1.0):
-        deltaw = update_tensor 
-        if self.sigma>0:
-            noise_std = torch.sqrt(torch.abs(eta*update_tensor)*self.wrange)*self.sigma
-            noise = torch.normal(mean=0, std=torch.ones_like(deltaw))*noise_std.detach()
-        else:
-            noise = 0
-        return passthroughclamp(weight_tensor+eta*update_tensor, self.wmin, self.wmax)+noise
-    
-class Model3Linearnoise_low(Model3Linear):
-    sigma = .05
-    
-class Model3Linearnoise_high(Model3Linear):
-    sigma = .1
-    
-class CondUpdateO1(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, update_tensor, weight_tensor, eta, alpha, beta, gamma):
-        ctx.save_for_backward(update_tensor,weight_tensor)
-        ctx.params = [eta, alpha, beta, gamma]
-    
-        dw = update_tensor
-        ws = weight_tensor 
-
-        A = (beta + gamma*torch.sign((dw)))    
-        B = alpha/A 
-        return -B + (B + ws)*torch.exp(A*(dw*eta)) 
-
-    def backward(aux, grad_output):
-        # grad_input = grad_output.clone()
-        update_tensor, weight_tensor = aux.saved_tensors
-        eta, alpha, beta, gamma = aux.params
-        #grad_input = grad_output.clone()
-        return eta*((alpha + beta*weight_tensor)*grad_output+(gamma*weight_tensor)*torch.abs(grad_output)), None, None, None, None, None
-    
-                     
-cond_update_o1 = CondUpdateO1.apply   
-
-class CondUpdateO1Detach(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, update_tensor, weight_tensor, eta, alpha, beta, gamma):
-        ctx.save_for_backward(update_tensor,weight_tensor)
-        ctx.params = [eta, alpha, beta, gamma]
-    
-        dw = update_tensor
-        ws = weight_tensor 
-
-        A = (beta + gamma*torch.sign((dw)))    
-        B = alpha/A 
-        return -B + (B + ws)*torch.exp(A*(dw*eta)) 
-
-    def backward(aux, grad_output):
-        # grad_input = grad_output.clone()
-        update_tensor, weight_tensor = aux.saved_tensors
-        eta, alpha, beta, gamma = aux.params
-        #grad_input = grad_output.clone()
-        return eta*((alpha + beta*weight_tensor.detach())*grad_output+(gamma*weight_tensor.detach())*torch.abs(grad_output).detach()), None, None, None, None, None
-    
-                     
-cond_update_o1_detach = CondUpdateO1Detach.apply   
-    
-class Model3HardSign(Model3):
-# big asymmetry
-    name = 'Model3HardSign'
-    def cond_update(self, update_tensor, weight_tensor, eta=1.0):
-        #Ensure in the following that the gradient descent update is passed, not the gradient. I.e. a minus sign should be added when calling the custom_update fn
-        dw = update_tensor
-        ws = weight_tensor 
-
-        A = (self.beta + self.gamma*torch.sign((dw)))    
-        B = self.alpha/A 
-        w = -B + (B + ws)*torch.exp(A*(dw*eta)) 
-        deltaw = w - ws
-        if self.sigma > 0:
-            noise = torch.sqrt(torch.abs(deltaw)*self.wrange)*self.sigma
-            return w + torch.normal(mean=0, std=torch.ones_like(w))*noise.detach()
-        else:
-            return w
-        
-class Model3Detach(Model3):
-# big asymmetry
-    name = 'Model3Detach'
-    def cond_update(self, update_tensor, weight_tensor, eta=1.0):
-        #Ensure in the following that the gradient descent update is passed, not the gradient. I.e. a minus sign should be added when calling the custom_update fn
-        dw = update_tensor
-        ws = weight_tensor 
-
-        A = (self.beta + self.gamma*softsign((dw)))    
-        B = self.alpha/A 
-        w = -B + (B + ws)*torch.exp(A*(dw*eta)) 
-        if self.sigma > 0:
-            deltaw = w - ws
-            noise = torch.sqrt(torch.abs(deltaw)*self.wrange)*self.sigma
-            return w + torch.normal(mean=0, std=torch.ones_like(w))*noise.detach()
-        else:
-            return w.detach()
-        
-class Model3O1Detach(Model3):
-    '''
-    Backward is a taylor apporoximation of the update rule.
-    '''
-# big asymmetry
-    name = 'Model3O1Detach'
-    def cond_update(self, update_tensor, weight_tensor, eta=1.0):
-        #Ensure in the following that the gradient descent update is passed, not the gradient. I.e. a minus sign should be added when calling the custom_update fn
-        return cond_update_o1_detach(update_tensor, weight_tensor, eta, self.alpha, self.beta, self.gamma)
-                     
-class Model3O1(Model3):
-    '''
-    Backward is a taylor apporoximation of the update rule.
-    '''
-# big asymmetry
-    name = 'Model3O1'
-    def cond_update(self, update_tensor, weight_tensor, eta=1.0):
-        #Ensure in the following that the gradient descent update is passed, not the gradient. I.e. a minus sign should be added when calling the custom_update fn
-        return cond_update_o1(update_tensor, weight_tensor, eta, self.alpha, self.beta, self.gamma)                   
-
-class Model4(GokmenHaenschModel):
-    # big asymmetry
-    name = 'Model4'
-    gamma = -1
-    alpha=1.
-    
-    @property
-    def beta(self):
-        return (self.alpha-1)* self.gamma/(self.alpha- 2)     
- 
-
-    
-class Model3noise_low(GokmenHaenschModel):
-    # big asymmetry
-    name = 'Model3noise_low'
-    gamma = -10
-    alpha=1.45
-    sigma = .05
-    
-    @property
-    def beta(self):
-        return (self.alpha-1)* self.gamma/(self.alpha- 2)     
-
-
-class Model3noise_high(GokmenHaenschModel):
-    # big asymmetry
-    name = 'Model3noise_low'
-    gamma = -10
-    alpha=1.45
-    sigma = .1
     
     @property
     def beta(self):

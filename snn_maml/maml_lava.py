@@ -97,14 +97,18 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
                  boil=False,
                  outer_loop_quantizer = None,
                  inner_loop_quantizer = None,
-                 use_soel=False,
-                 learning_engine=None):
+                 use_soel=False):
         
-        self.threshold = torch.tensor([.05], requires_grad=True, dtype=torch.float).to(device)
+        # CURRENT RESULTS USE 0.001
+        self.threshold = torch.tensor([0.0001], requires_grad=True, dtype=torch.float).to(device) 
+        # 0 works well, but maybe that's just because then it's always learning...
+        # try a very small thresh? 0.05 didn't work, maybe smaller?
         print("Using quantiziation, delay, and spike rates with compute_accuracy_lava")
         
         self.use_soel = use_soel
-        self.learning_engine = learning_engine
+        
+        # if self.use_soel:
+        #     self.threshold = torch.tensor([0.05], requires_grad=True, dtype=torch.float).to(model.get_input_layer_device())
 
         super(ModelAgnosticMetaLearning_Lava, self).__init__(
             model=model, 
@@ -148,33 +152,13 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
         # One task per batch_size
         for task_id, (train_inputs, train_targets, test_inputs, test_targets) \
                 in enumerate(zip(*batch['train'], *batch['test'])):
-            
-           # print("INPUT SHAPE", train_inputs.shape)
-            # print("using loaded batch")
-            # train_inputs = torch.load("train_batch.pt")
-            # test_inputs = torch.load("test_batch.pt")
-            # train_targets = torch.load("train_targets.pt")
-            # test_targets = torch.load("test_targets.pt")
-            
-            
-            # torch.save(train_inputs,"train_batch_50.pt")
-            # torch.save(test_inputs,"test_batch_50.pt")
-            # torch.save(train_targets,"train_targets_50.pt")
-            # torch.save(test_targets,"test_targets_50.pt")
-            
-            # i=1/0
         
-            time_train_targets = 0 #torch.zeros((train_targets.shape[0],train_inputs.shape[0],100),dtype=torch.long).to(self.device)
-            time_test_targets = 0# torch.zeros((test_targets.shape[0],test_inputs.shape[0],100),dtype=torch.long).to(self.device)
-            # for i in range(train_targets.shape[0]):
-            #     time_train_targets[i][train_targets[i]] = torch.ones(100)
-            # for i in range(test_targets.shape[0]):
-            #     time_test_targets[i][test_targets[i]] = torch.ones(100)
-                
-#             print("Testing loihi-soel for equivalence to hardware nxsdk version")
-#             five_rep_shot = torch.load('five_shot_repeat.pt')
-#             train_inputs = five_rep_shot[:5].to(self.device)
-#             train_targets = torch.zeros(5).long().to(self.device)
+            time_train_targets = torch.zeros((train_targets.shape[0],train_inputs.shape[0],100),dtype=torch.long).to(self.device)
+            time_test_targets = torch.zeros((test_targets.shape[0],test_inputs.shape[0],100),dtype=torch.long).to(self.device)
+            for i in range(train_targets.shape[0]):
+                time_train_targets[i][train_targets[i]] = torch.ones(100)
+            for i in range(test_targets.shape[0]):
+                time_test_targets[i][test_targets[i]] = torch.ones(100)
                 
                 
             params, adaptation_results = self.adapt( 
@@ -193,10 +177,8 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
             #print("test phase")
             with torch.set_grad_enabled(self.model.training):
                 test_logits = self.model(test_inputs, params=params)
-                #test_logits = self.model(train_inputs, params=params)
-                #pdb.set_trace()
-                #print("test")
                 
+                #pdb.set_trace()
                 if not self.use_soel:
                     outer_loss = self.loss_function(test_logits, test_targets)
                 else:
@@ -234,19 +216,23 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
             (num_adaptation_steps,), dtype=np.float32)}
 
         for step in range(num_adaptation_steps):
+            #pdb.set_trace()
+            #print("getting adapt logits")
+            logits = self.model(inputs, params=params)
+
+            inner_loss = self.loss_function(logits, targets) #[:,:,-1], targets)
+            results['inner_losses'][step] = inner_loss.item()
+            #pdb.set_trace()
+            if (step == num_adaptation_steps-1) and is_classification_task: 
+                results['accuracy_before'] = compute_accuracy_lava(logits, targets)
+
+            #print("updating params...")
+            self.model.zero_grad()
+            
+            # pdb.set_trace()
+            # print('before')
             
             if not self.use_soel:
-                
-                logits = self.model(inputs, params=params)
-                #pdb.set_trace()
-                inner_loss = self.loss_function(logits, targets) #[:,:,-1], targets)
-                results['inner_losses'][step] = inner_loss.item()
-                #pdb.set_trace()
-                if (step == num_adaptation_steps-1) and is_classification_task: 
-                    results['accuracy_before'] = compute_accuracy_lava(logits, targets)
-
-                #print("updating params...")
-                self.model.zero_grad()
             
                 params = plasticity_rules.custom_sgd(self.model,
                                                     inner_loss,
@@ -257,23 +243,17 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
             
             # logits = torch.mean(logits,dim=-1)
             else:
-
-                params = plasticity_rules.loihi_soel(self.model,
-                                                     inputs,
-                                                    targets,
+                #pdb.set_trace()
+                params = plasticity_rules.maml_soel(self.model,
+                                                    logits,
+                                                    time_targets,#batch_one_hot(time_targets,5).to(self.device),
                                                     step_size=step_size,
                                                     params=params,
                                                     first_order=(not self.model.training) or first_order,
-                                                    learning_engine=self.learning_engine) # target spike rate to trigger learning
-                    
-                logits = self.model(inputs, params=params)
-                #pdb.set_trace()
-                self.model.zero_grad()
-                accuracy_before=compute_accuracy_lava(logits, targets)
-#                 print(f"{accuracy_before}/{i+1}")
+                                                    threshold = self.threshold)
                 
-                results['accuracy_before'] = accuracy_before
-
+                #print("thresh",self.threshold)
+            
             # pdb.set_trace()
             # print('after')
             

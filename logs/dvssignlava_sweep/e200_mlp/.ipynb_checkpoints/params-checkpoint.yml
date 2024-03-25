@@ -1,0 +1,50 @@
+# fast sigmoid, return volt, descale=True
+alif: false
+# network:
+#   Mhid: []
+#   Nhid: 
+#   - 32
+#   - 64
+#   - 128
+network:
+  Mhid: 
+  - 512
+  - 512
+  Nhid: []
+  # - 16
+  # - 32
+  #- 30
+  analog_readout: false
+  benchmark: doubledvssign_torchmeta
+  chunk_size_test: 100
+  chunk_size_train: 100
+  delay: false
+  deltat: 1000
+  input_shape:
+  - 2
+  - 32
+  - 16
+  kernel_size:
+  - 5
+  - 3
+  - 3
+  - 1
+  out_channels: 5
+  pool_size:
+  - 2
+  - 2
+  - 2
+  - 1
+  stride:
+  - 1
+  - 1
+  - 1
+  - 1
+neuron_model:
+  current_decay: 0.97 #0.92
+  quantize: True #true
+  requires_grad: false
+  scale_grad: 3
+  tau_grad: 0.03
+  threshold: 0
+  voltage_decay: 0.92 #0.97

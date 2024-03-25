@@ -34,6 +34,8 @@ from matplotlib import pyplot as plt
 
 import random
 
+import h5py
+
 m = nn.Sigmoid() 
 
 class FastSigmoid(torch.autograd.Function): 
@@ -67,7 +69,7 @@ class MetaModuleNg(MetaModule):
                 
 def get_voltage_current_slayer_network(spike, model, end_block_id):
     
-    spike = spike.permute(0,2,3,4,1)
+    spike = spike.permute(0,2,3,4,1).float()
     
     #spike = spike.flatten(1,3)
     
@@ -151,7 +153,14 @@ def init_LSUV_actrate(net, data_batch, act_rate, threshold=0., var=1.0):
     tgt_mu = scipy.optimize.fmin(lambda loc: (act_rate-(1-norm.cdf(threshold,loc,var)))**2, x0=0.)[0]
     init_LSUV(net, data_batch, tgt_mu=tgt_mu, tgt_var=var)
                 
-        
+
+# tuning tips:
+# can try to set weight_norm to True, should act like batch norm which could help
+# try adding refractory dynamics, alif in lava has it (lif with adaptive threshold, could turn off for lif)
+# examine spike activity of the layers, average spike rate in the layers, ~10-50% ballpark
+# if spiking too much, lower initial weight values. Too little then raise. weight_scale param
+# make sure layers keep spiking and are not dying
+# make sure graidents of inner and outer loop are not vanishing or exploding
 class LavaNet(nn.Module):
     def __init__(self, params):
         super(LavaNet, self).__init__()
@@ -247,13 +256,6 @@ class LavaNet(nn.Module):
                  self.blocks.append(slayer.block.cuba.Dense(self.neuron_params_dropout, self.network_params['Mhid'][mhid-1], self.network_params['Mhid'][mhid], weight_norm=False, delay=self.network_params['delay'],delay_shift=True,weight_scale=1, pre_hook_fx=None if self.neuron_params['quantize'] else lambda x: x))#,pre_hook_fx=lambda x: x))#pre_hook_fx=lambda x: x))
                     
         return (self.network_params['Mhid'][-1])
-
-    # can try to set weight_norm to True, should act like batch norm which could help
-    # try adding refractory dynamics, alif in lava has it (lif with adaptive threshold, could turn off for lif)
-    # examine spike activity of the layers, average spike rate in the layers, ~10-50% ballpark
-    # if spiking too much, lower initial weight values. Too little then raise. weight_scale param
-    # make sure layers keep spiking and are not dying
-    # make sure graidents of inner and outer loop are not vanishing or exploding
     
     def build_output_layer(self):
         self.blocks.append(slayer.block.cuba.Dense(self.neuron_params, self.Mhid[-1], self.network_params['out_channels'], weight_norm=False,delay=self.network_params['delay'],delay_shift=self.network_params['delay'], weight_scale=1, pre_hook_fx=None if self.neuron_params['quantize'] else lambda x: x))#,pre_hook_fx=lambda x: x))#,pre_hook_fx=None))
@@ -280,8 +282,8 @@ class LavaNet(nn.Module):
         #self.analog_readout=False
         #self.blocks[-1].neuron.return_internal_state = False
         #spike = self.transpose_torchneuromorphic_to_SLAYER(spike)
-        
-        spike_input = spike.permute(0,2,3,4,1)
+        #pdb.set_trace()
+        spike = spike.permute(0,4,1,2,3)#permute(0,2,3,4,1)
         
         if not self.network_params['Nhid']:
             # first layer is mlp, flatten input
@@ -291,36 +293,36 @@ class LavaNet(nn.Module):
             
         params_wb = OrderedDict()
             
-        for k in range(1): # really simple way of doing a burnin type thing
-            spike = spike_input
-            i = 0
-            j = 0
-            for block in self.blocks:
-                if self.network_params['Nhid']:
-                    if i%2==0 and j!=(len(self.network_params['Nhid'])*2):
-                        spike, volt = block(spike)
-                        j+=1
-                    elif j>=(len(self.network_params['Nhid'])*2):
-                        # should be linear or output layer, need to flatten input
-                        if len(spike.shape)>3:
-                            spike = spike.flatten(1,3)
-                        spike, volt = block(spike)
-                    else:
-                        # should be pooling layer
-                        spike, volt = block(spike)
-                        j+=1
-
-                else:
-
+        # for k in range(1): # really simple way of doing a burnin type thing
+        #     #spike = spike_input
+        i = 0
+        j = 0
+        for block in self.blocks:
+            if self.network_params['Nhid']:
+                if i%2==0 and j!=(len(self.network_params['Nhid'])*2):
+                    spike, volt = block(spike)
+                    j+=1
+                elif j>=(len(self.network_params['Nhid'])*2):
+                    # should be linear or output layer, need to flatten input
                     if len(spike.shape)>3:
                         spike = spike.flatten(1,3)
-                    
-                    #pdb.set_trace()
                     spike, volt = block(spike)
-                    #print("before final layer")
-                    #pdb.set_trace
+                else:
+                    # should be pooling layer
+                    spike, volt = block(spike)
+                    j+=1
 
-                i+=1
+            else:
+                #pdb.set_trace()
+                # if len(spike.shape)>3:
+                #     spike = spike.flatten(1,3)
+
+                #pdb.set_trace()
+                spike, volt = block(spike)
+                #print("before final layer")
+                #pdb.set_trace
+
+            i+=1
 
         # in Emre's implementation he has this, which could be an important difference for how the performance is
         # his is also using torch's cross entropy loss instead of a slayer loss, which could also be a difference maker
@@ -334,7 +336,11 @@ class LavaNet(nn.Module):
         else:
             #pdb.set_trace()
             # the best model result was on volt
-            return spike #spike #spike # spike#[:,:,:30] #torch.mean(spike[:,:,:], axis=2) #250 got max 92% with .05e-2 meta-lr, but this was with an incorrect implementation I think
+            #return spike 
+            #return volt
+            return volt #torch.sum(spike,axis=-1)
+        
+        #spike #spike # spike#[:,:,:30] #torch.mean(spike[:,:,:], axis=2) #250 got max 92% with .05e-2 meta-lr, but this was with an incorrect implementation I think
     
     
     def gen_loihi_params(self, folder):
@@ -387,6 +393,7 @@ class LavaNet(nn.Module):
         h = h5py.File(filename, 'w')
         layer = h.create_group('layer')
         for i, b in enumerate(self.blocks):
+            pdb.set_trace()
             b.export_hdf5(layer.create_group(f'{i}'))
             
     
@@ -535,7 +542,7 @@ class MetaLavaNet(MetaModuleNg):
         params_wb = OrderedDict()
             
         for k in range(1): # really simple way of doing a burnin type thing
-            spike = spike_input
+            spike = spike_input.float()
             i = 0
             j = 0
             for block in self.blocks:
@@ -778,11 +785,11 @@ def build_model_lava(out_features, params_file, device, detach_at, sg_function_b
     # with open(params_file, 'w') as outfile:
     #     yaml.dump(params, outfile)
     
-    if params['alif']:
-        print("USING ALIF NEURON")
-        net = MetaLavaNetALIF(params).to(device)
-    else:
-        net = MetaLavaNet(params).to(device)
+    # if params['alif']:
+    #     print("USING ALIF NEURON")
+    #     net = MetaLavaNetALIF(params).to(device)
+    # else:
+    net = MetaLavaNet(params).to(device)
     
     print(net) # make sure it made the proper network
     

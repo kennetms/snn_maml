@@ -25,12 +25,6 @@ import pdb
 
 from comet_ml import Experiment
 
-from snn_maml.lava_dl_plasticity.loihi_plasticity import LoihiPlasticity
-
-import wandb
-
-torch.random.manual_seed(1024) # to get consistent results for comparison
-
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 #os.environ["CUDA_VISIBLE_DEVICES"]="0" 
 
@@ -115,11 +109,15 @@ if args.sweep:
         workspace="kennetms",
     )
 
-    #experiment.log_parameters(hyper_params)
+    # Report multiple hyperparameters using a dictionary:
+    hyper_params = {
+        "epochs": 1,
+    }
+    experiment.log_parameters(hyper_params)
 
 
 logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
-device = f'cuda:{args.device}' #torch.device(f'cuda:{args.device}' if not args.no_cuda and torch.cuda.is_available() else 'cpu')
+device = 'cpu' #f'cuda:{args.device}' #torch.device(f'cuda:{args.device}' if not args.no_cuda and torch.cuda.is_available() else 'cpu')
 
 if (args.output_folder is not None):
     if not os.path.exists(args.output_folder):
@@ -247,25 +245,6 @@ else:
     
 print(benchmark.model, benchmark.input_size)
 
-if args.use_soel:
-   
-    #torch.nn.init.normal_(benchmark.model.blocks[-1].synapse.weight, mean=2.0, std=1.0) # try not resetting for now, this might not be the best way to anyway i.e no spikes from output is bad. 
-    # there's no spikes from the output anyway. It seems like it's learning how to spike, so output neurons are "dead", inner loop update learns how to spike to get the correct output, or at least tries to...
-    # this doesn't work for the soel learning rule, or any other learning rule that relies on spikes in the output to update i.e. needs traces
-    # Would this be the same as freezing these layers? yes
-    for i in range(len(benchmark.model.blocks)-1):
-        benchmark.model.blocks[i].synapse.requires_grad = False
-        
-    learning_engine = LoihiPlasticity(dw_fx=lambda x, y: (2**-4) * torch.mm(y[1]-20, x[2]) - (2**-4) * torch.mm(y[1]-20, x[1]), # stdp learning rule, post synaptic components must be first
-                                      impulse={'x1': 40, 'x2':40, 'y1': 10},
-                                      tau={'x1': 3, 'x2':5, 'y1': 10},
-                                     scale=1<<6,)#12)
-    
-    learning_engine.attach_pre_trace_hook(benchmark.model.blocks[-1].synapse)
-    learning_engine.attach_post_trace_hook(benchmark.model.blocks[-1].neuron) # should automatically evaluate the trace based on pre and post spikes
-    
-else:
-    learning_engine=None
 
 metalearner = ModelAgnosticMetaLearning_Lava(benchmark.model,
                                         meta_optimizer,
@@ -283,8 +262,7 @@ metalearner = ModelAgnosticMetaLearning_Lava(benchmark.model,
                                         boil = args.boil,
                                         outer_loop_quantizer = quantizer_out,
                                         inner_loop_quantizer = quantizer_in,
-                                            use_soel=args.use_soel,
-                                            learning_engine=learning_engine)
+                                            use_soel=args.use_soel)
 
 best_value = None
 
@@ -302,20 +280,21 @@ if args.warm_start != '':
     except FileNotFoundError:
         warnings.warn('No step size loading')
         
-        
 elif args.load_model:
     print("loading model")
     with open(args.load_model, 'rb') as f:
         benchmark.model.load_state_dict(torch.load(f, map_location=device))
         print(benchmark.model)
+        #benchmark.model.export_hdf5('trained/network_test.net')
         if os.path.exists(args.load_model[:-8]+'optim.th'):
             metalearner.optimizer.load_state_dict(torch.load(args.load_model[:-8]+'optim.th')) # -8 because we need to remove model.th
-            
-            
-    if args.use_soel:
-        print("SOEL LAST LAYER INIT")
-        torch.nn.init.normal_(benchmark.model.blocks[-1].synapse.weight, mean=0.01, std=.01) # try not resetting for now, this might not be the best way to anyway i.e no spikes from output is bad. 
 
+    if args.use_soel and args.do_train:
+        torch.nn.init.xavier_uniform(benchmark.model.blocks[-1].synapse.weight)
+        # Would this be the same as freezing these layers? yes
+        for i in range(len(benchmark.model.blocks)-1):
+            benchmark.model.blocks[i].synapse.requires_grad = False
+            
 elif hasattr(net, 'LIF_layers'):
     out = next(iter(meta_train_dataloader))
     out_c = tensors_to_device(out, device=device)
@@ -343,7 +322,9 @@ elif hasattr(net, 'blocks'):
     
     print(tr_l)
 
-    torch_init_LSUV(benchmark.model,data_batch, tr_l)
+    torch_init_LSUV(benchmark.model,data_batch, tr_l, )
+
+    #benchmark.model.export_hdf5('trained/network_test.net')
     
 
 #pdb.set_trace()           
@@ -391,7 +372,7 @@ for epoch in range(args.num_epochs):
         all_train[epoch] = np.mean(results['accuracies_after'])
         
         if args.sweep:
-            experiment.log_metric("accuracy", all_train[epoch], step=epoch)
+            experiment.log_metric("accuracy", all_train[epoch], step=0)
         
         
     if args.do_noinner:
@@ -487,11 +468,12 @@ if args.do_train:
                 torch.save(metalearner.step_size, f)
 
 if args.do_test:
-    # put the weight into loihi compatible format
-    benchmark.model.gen_loihi_params('./loihi_params_mlp_dnmnist')
-    
     print("mean test", np.mean(all_test))
     print("stddev test", np.std(all_test))
+    
+    # put the weight into loihi compatible format
+    benchmark.model.gen_loihi_params(args.output_folder)
+    benchmark.model.export_hdf5(args.output_folder+'/network.net')
 
 if hasattr(benchmark.meta_train_dataset, 'close'):
     benchmark.meta_train_dataset.close()

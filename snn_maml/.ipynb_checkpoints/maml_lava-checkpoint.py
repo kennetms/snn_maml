@@ -99,10 +99,16 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
                  inner_loop_quantizer = None,
                  use_soel=False):
         
-        self.threshold = torch.tensor([.05], requires_grad=True, dtype=torch.float).to(device)
+        # CURRENT RESULTS USE 0.001
+        self.threshold = torch.tensor([0.0001], requires_grad=True, dtype=torch.float).to(device) 
+        # 0 works well, but maybe that's just because then it's always learning...
+        # try a very small thresh? 0.05 didn't work, maybe smaller?
         print("Using quantiziation, delay, and spike rates with compute_accuracy_lava")
         
         self.use_soel = use_soel
+        
+        # if self.use_soel:
+        #     self.threshold = torch.tensor([0.05], requires_grad=True, dtype=torch.float).to(model.get_input_layer_device())
 
         super(ModelAgnosticMetaLearning_Lava, self).__init__(
             model=model, 
@@ -172,10 +178,11 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
             with torch.set_grad_enabled(self.model.training):
                 test_logits = self.model(test_inputs, params=params)
                 
+                #pdb.set_trace()
                 if not self.use_soel:
                     outer_loss = self.loss_function(test_logits, test_targets)
                 else:
-                    outer_loss = self.loss_function(test_logits[:,:,-1], test_targets)    
+                    outer_loss = self.loss_function(test_logits, test_targets)    
                     
                 results['outer_losses'][task_id] = outer_loss.item()
                 mean_outer_loss += outer_loss
@@ -236,7 +243,7 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
             
             # logits = torch.mean(logits,dim=-1)
             else:
-                pdb.set_trace()
+                #pdb.set_trace()
                 params = plasticity_rules.maml_soel(self.model,
                                                     logits,
                                                     time_targets,#batch_one_hot(time_targets,5).to(self.device),
@@ -244,6 +251,8 @@ class ModelAgnosticMetaLearning_Lava(ModelAgnosticMetaLearning):
                                                     params=params,
                                                     first_order=(not self.model.training) or first_order,
                                                     threshold = self.threshold)
+                
+                #print("thresh",self.threshold)
             
             # pdb.set_trace()
             # print('after')
