@@ -29,7 +29,7 @@ Pytorch MAML MAML Lava-dl Double ASL:
 python train_lava.py --output-folder='logs/asl_soel' --benchmark='doubledvssignlava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/dvssignlava_sweep/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/dvssignlava_sweep/e200_mlp/model.th'
 
 Pytorch MAML MAML Lava-dl SOEL Double ASL:
-python train_lava.py --output-folder='logs/asl_soel' --benchmark='doubledvssignlava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='/logs/dvssignlava_sweep/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/dvssignlava_sweep/e200_mlp/model.th' --use-soel
+python train_lava.py --output-folder='logs/asl_soel' --benchmark='doubledvssignlava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/dvssignlava_sweep/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/dvssignlava_sweep/e200_mlp/model.th' --use-soel
 
 
 Pytorch MAML ConvSNN+hard reset DvsGesture actor+class:
