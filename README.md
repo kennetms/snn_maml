@@ -5,7 +5,7 @@ python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistseq
 
 
 Pytorch MAML ConvSNN+quantized Double NMNIST:
-python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='parameters/decolle_params_CNN_qonly.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_comp/e250_cnn_qonly/model.th'
+python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp/e250_cnn_qonly/params.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_comp/e250_cnn_qonly/model.th'
 
 Pytorch MAML ConvSNN+hard reset+quantized Double NMNIST:
 python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp/e250_cnn_reset_qin/params.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_comp/e250_cnn_reset_qin/model.th'
