@@ -1,60 +1,49 @@
-If you use or adopt any of the work presented in this repository, please cite our work as follows:
+To reproduce results run the following commands organized by the results in Table 1:
 
-```
-@article{Stewart_2022,
-doi = {10.1088/2634-4386/ac8828},
-url = {https://dx.doi.org/10.1088/2634-4386/ac8828},
-year = {2022},
-month = {sep},
-publisher = {IOP Publishing},
-volume = {2},
-number = {4},
-pages = {044002},
-author = {Kenneth M Stewart and Emre O Neftci},
-title = {Meta-learning spiking neural networks with surrogate gradient descent},
-journal = {Neuromorphic Computing and Engineering }
-}
-```
-
-# Introduction
-
-This repository has been modified from pytorch-maml (https://github.com/tristandeleu/pytorch-maml)
-
-# Usage
-
-## Notes for setup and data acquisition
-
-The datasets for Double NMNIST, Double ASL-DVS, and N-Omniglot as detailed in the paper are obtainable and created with the torchneuromorphic repository linked here:
-https://github.com/kennetms/torchneuromorphic
+Pytorch MAML ConvSNN+hard reset Double NMNIST:
+python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp/e500_cnn_reset/params.yml' --device=0 --do-test --load-model='logs/decolle_comp/e500_cnn_reset/model.th'
 
 
-## Basic Usage for MAML ANN
-```
-run train_wandb.py --benchmark=omniglot --no-log 
-```
-The option no-log here disables wand.ai logging.
+Pytorch MAML ConvSNN+quantized Double NMNIST:
+python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='parameters/decolle_params_CNN_qonly.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_comp/e250_cnn_qonly/model.th'
 
-## Basic Usage for MAML SNN
+Pytorch MAML ConvSNN+hard reset+quantized Double NMNIST:
+python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp/e250_cnn_reset_qin/params.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_comp/e250_cnn_reset_qin/model.th'
 
-For more details on the background for MAML SNN, see pre-print https://arxiv.org/abs/2201.10777
+Pytorch MAML Lava-dl Double NMNIST:
+python train_lava.py --output-folder='logs/dnmnistlava_sweep' --benchmark='doublenmnistlava' --meta-lr=.002e-2 --step-size=.01 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/dnmnistlava_sweep/e_cnn_best/params.yml' --device=0 --do-test --load-model='logs/dnmnistlava_sweep/e_cnn_best/model.th'
 
-### Example run of double nmnist (if not loading model omit --load-model):
-```
-python train.py --output-folder='logs/doublenmnistsequence' --benchmark='doublenmnistsequence' --batch-size=1 --verbose --meta-lr=.002 --step-size=1 --num-steps=1 --num-workers=10 --params_file='parameters/decolle_params-CNN.yml' --num-shots=1 --load-model=double_nmnist_sequence_best/best_model/model.th --num-batches=200 --num-batches-test=20 --num-epochs=100 
-```
+Pytorch MAML Lava-dl SOEL Double NMNIST:
+python train_lava.py --output-folder='logs/dnmnist_soel' --benchmark='doublenmnistlava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/dnmnistlava_sweep/best_e500/params.yml' --device=0 --do-test --load-model='logs/dnmnistlava_sweep/best_e500/model.th' --use-soel
 
-### Example run of detaching the last layer (add --detach-at=):
-```
-python train.py --output-folder='logs/doublenmnistsequence' --benchmark='doublenmnistsequence' --batch-size=1 --verbose --meta-lr=.002 --step-size=1 --num-steps=1 --num-workers=10 --params_file='parameters/decolle_params-CNN.yml' --num-shots=1 --load-model=double_nmnist_sequence_best/best_model/model.th --num-batches=200 --num-batches-test=20 --num-epochs=10 --device=1 --do-test --detach-at=0
-```
+Pytorch MAML ConvSNN+hard reset Double ASL:
+python train.py --output-folder='logs/decolle_comp_asl' --benchmark='doubledvssignsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp_asl/e144_reset/params.yml' --device=0 --do-test --load-model='logs/decolle_comp_asl/e144_reset/model.th'
 
-### Example run of double asl dvs (if not loading model omit --load-model):
-```
-python train.py --output-folder='logs/doubledvssignsequence' --benchmark='doubledvssignsequence' --batch-size=1 --verbose --meta-lr=.002 --step-size=1 --num-steps=1 --num-workers=10 --params_file='parameters/decolle_params-CNN-Sign.yml' --num-shots=1 --num-batches=200 --num-batches-test=20 --num-epochs=100 --load-model=logs/doubledvssignsequence/2021-12-10_201651/model.th
-```
+Pytorch MAML ConvSNN+quantize Double ASL:
+python train.py --output-folder='logs/decolle_comp_asl' --benchmark='doubledvssignsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp_asl/e200_qonly/params.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_comp_asl/e200_qonly/model.th'
 
- 
-```
-## Licensing
-These assets are licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.txt).
+Pytorch MAML ConvSNN+hard reset+quantized Double ASL:
+python train.py --output-folder='logs/decolle_comp_asl' --benchmark='doubledvssignsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp_asl/e125_reset_quant/params.yml' --device=0 --do-test --load-model='logs/decolle_comp_asl/e125_reset_quant/model.th'
 
+Pytorch MAML MAML Lava-dl Double ASL:
+python train_lava.py --output-folder='logs/asl_soel' --benchmark='doubledvssignlava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='/Users/k_stewart/chouti/snn_maml/logs/dvssignlava_sweep/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/dvssignlava_sweep/e200_mlp/model.th'
+
+Pytorch MAML MAML Lava-dl SOEL Double ASL:
+python train_lava.py --output-folder='logs/asl_soel' --benchmark='doubledvssignlava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='/Users/k_stewart/chouti/snn_maml/logs/dvssignlava_sweep/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/dvssignlava_sweep/e200_mlp/model.th' --use-soel
+
+
+Pytorch MAML ConvSNN+hard reset DvsGesture actor+class:
+python train.py --output-folder='logs/decolle_gesture' --benchmark='dvsgesturemeta' --meta-lr=.002e-2 --step-size=1 --num-steps=1 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_gesture/e100_mlp_reset/params.yml' --device=0 --do-test --load-model='logs/decolle_gesture/e100_mlp_reset/model.th'
+
+Pytorch MAML ConvSNN+quantize DvsGesture actor+class:
+python train.py --output-folder='logs/decolle_gesture' --benchmark='dvsgesturemeta' --meta-lr=.002e-2 --step-size=1 --num-steps=1 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_gesture/e200_qonly/params.yml' --device=0 --do-test --quantize=8 --quantize_in=8 --load-model='logs/decolle_gesture/e200_qonly/model.th'
+
+Pytorch MAML ConvSNN+hard reset+quantized DvsGesture actor+class:
+python train.py --output-folder='logs/decolle_gesture' --benchmark='dvsgesturemeta' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_gesture/e250_qs/params.yml' --device=0 --do-test --quantize_in=8s --load-model='logs/decolle_gesture/e250_qs/model.th'
+
+Pytorch MAML MAML Lava-dl DvsGesture actor+class:
+python train_lava.py --output-folder='logs/gesture_lava' --benchmark='dvsgesturemetalava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/gesture_lava/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/gesture_lava/e200_mlp/model.th'
+
+
+Pytorch MAML MAML Lava-dl SOEL DvsGesture actor+class:
+python train_lava.py --output-folder='logs/gesture_lava' --benchmark='dvsgesturemetalava' --meta-lr=.002e-2 --step-size=1 --num-steps=5 --num-workers=0 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/gesture_lava/e200_mlp/params.yml' --device=0 --do-test --load-model='logs/gesture_lava/e200_mlp/model.th' --use-soel
