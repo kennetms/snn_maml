@@ -68,10 +68,10 @@ flatbuffers==22.9.24
 fonttools==4.34.4
 gitdb==4.0.10
 GitPython==3.1.30
-google-api-core==2.11.0
+google-api-core==2.9.0
 google-auth==2.19.1
 google-auth-oauthlib==1.0.0
-googleapis-common-protos==1.59.1
+googleapis-common-protos==1.54.0
 grpcio==1.54.2
 h5py==3.7.0
 html5lib==1.1
@@ -220,9 +220,9 @@ toml==0.10.2
 tomli==2.0.1
 tomlkit==0.11.8
 torch @ https://download.pytorch.org/whl/cu113/torch-1.11.0%2Bcu113-cp310-cp310-linux_x86_64.whl
-torch-mate==0.0.1
 torchmeta==1.8.0
-torchneuromorphic==0.3.5
+#torchneuromorphic==0.3.5
+-e git+https://github.com/kennetms/torchneuromorphic.git@49d839ceecb011419433719508904a079602aaba#egg=torchneuromorphic
 torchvision @ https://download.pytorch.org/whl/cu113/torchvision-0.12.0%2Bcu113-cp310-cp310-linux_x86_64.whl
 tornado==6.2
 tqdm==4.64.1
@@ -241,5 +241,3 @@ Werkzeug==2.3.6
 widgetsnbextension==4.0.9
 wrapt==1.15.0
 wurlitzer==3.0.3
-zipp==3.11.0
-zstd==1.5.2.6
