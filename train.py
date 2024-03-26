@@ -162,7 +162,7 @@ if hasattr(benchmark.model, 'get_trainable_parameters'):
     meta_optimizer = torch.optim.Adam(benchmark.model.parameters(), lr=args.meta_lr) 
     if args.quantize:
         print('Quantize')
-        pdb.set_trace()
+        #pdb.set_trace()
         from snn_maml.utils import create_fixed_quantizers
         
         quantizer_out = create_fixed_quantizers()[args.quantize]
