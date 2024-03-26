@@ -1,3 +1,5 @@
+pip install -r requirements.txt --no-deps
+
 To reproduce results run the following commands organized by the results in Table 1:
 
 Pytorch MAML ConvSNN+hard reset Double NMNIST:
