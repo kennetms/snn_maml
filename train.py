@@ -237,8 +237,8 @@ elif args.load_model:
     with open(args.load_model, 'rb') as f:
         benchmark.model.load_state_dict(torch.load(f, map_location=device))
         print(benchmark.model)
-        if os.path.exists(args.load_model[:-8]+'optim.th'):
-            metalearner.optimizer.load_state_dict(torch.load(args.load_model[:-8]+'optim.th')) # -8 because we need to remove model.th
+        # if os.path.exists(args.load_model[:-8]+'optim.th'):
+        #     metalearner.optimizer.load_state_dict(torch.load(args.load_model[:-8]+'optim.th')) # -8 because we need to remove model.th
 
 elif hasattr(net, 'LIF_layers'):
     out = next(iter(meta_train_dataloader))
