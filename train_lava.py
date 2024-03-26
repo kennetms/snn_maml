@@ -271,8 +271,8 @@ elif args.load_model:
         benchmark.model.load_state_dict(torch.load(f, map_location=device))
         print(benchmark.model)
         #benchmark.model.export_hdf5('trained/network_test.net')
-        if os.path.exists(args.load_model[:-8]+'optim.th'):
-            metalearner.optimizer.load_state_dict(torch.load(args.load_model[:-8]+'optim.th')) # -8 because we need to remove model.th
+        # if os.path.exists(args.load_model[:-8]+'optim.th'):
+        #     metalearner.optimizer.load_state_dict(torch.load(args.load_model[:-8]+'optim.th')) # -8 because we need to remove model.th
 
     if args.use_soel and args.do_train:
         torch.nn.init.xavier_uniform(benchmark.model.blocks[-1].synapse.weight)
