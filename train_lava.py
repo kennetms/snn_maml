@@ -23,7 +23,7 @@ import argparse
 
 import pdb
 
-from comet_ml import Experiment
+#from comet_ml import Experiment
 
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 #os.environ["CUDA_VISIBLE_DEVICES"]="0" 
@@ -99,21 +99,6 @@ if not args.do_train and not args.do_test and not args.do_noinner:
 if args.num_shots_test <= 0:
     args.num_shots_test = args.num_shots
     
-
-if args.sweep:
-    print("performing sweep")
-    # Create an experiment with your api key
-    experiment = Experiment(
-        api_key="b0lVLjVZobevu5hLzc6EsverV",
-        project_name="meta",
-        workspace="kennetms",
-    )
-
-    # Report multiple hyperparameters using a dictionary:
-    hyper_params = {
-        "epochs": 1,
-    }
-    experiment.log_parameters(hyper_params)
 
 
 logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
