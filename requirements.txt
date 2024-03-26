@@ -104,7 +104,7 @@ jupyterlab-widgets==3.0.9
 jupyterlab_server==2.15.2
 keyring==23.13.1
 kiwisolver==1.4.4
--e git+https://github.com/lava-nc/lava-dl.git@dec641bbbedd041c5aa61d5ecca0a57472d0543e#egg=lava_dl
+-e git+https://github.com/kennetms/lava-dl.git@c6d2c74df2150317487d14c904f5c929bdc6e430#egg=lava_dl
 lava-nc==0.8.0
 linecache2==1.0.0
 lockfile==0.12.2
