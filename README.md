@@ -1,6 +1,6 @@
 pip install -r requirements.txt --no-deps
 
-To reproduce results run the following commands organized by the results in Table 1:
+To reproduce non-Loihi results run the following commands organized by the results in Table 1:
 
 Pytorch MAML ConvSNN+hard reset Double NMNIST:
 python train.py --output-folder='logs/decolle_comp' --benchmark='doublenmnistsequence' --meta-lr=.2e-2 --step-size=1 --num-steps=1 --num-workers=10 --num-epochs=10 --num-batches=200 --num-shots=1 --batch-size=1 --num-batches-test=20 --params_file='logs/decolle_comp/e500_cnn_reset/params.yml' --device=0 --do-test --load-model='logs/decolle_comp/e500_cnn_reset/model.th'
